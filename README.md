@@ -1,124 +1,192 @@
-# ExactTranscriber
+# 🎙️ ExactTranscriber
 
-**ExactTranscriber** is a user-friendly Streamlit application designed for accurate audio transcription, editing, and management. It leverages the power of Google's Gemini API to provide high-quality transcriptions and offers a seamless interface for refining results and exporting them in various formats.
+**Precision audio transcription powered by Google's Gemini AI with intelligent agent-based architecture**
 
-This tool is ideal for journalists, researchers, students, podcasters, and anyone who needs to convert spoken audio into text efficiently. Whether you're transcribing interviews, lectures, meetings, or personal notes, ExactTranscriber aims to streamline your workflow.
+ExactTranscriber is a modern, agent-powered audio transcription application that leverages Google's Gemini 2.5 Flash multimodal models to deliver high-quality, accurate transcriptions. Built with a sophisticated agent architecture, it offers smart editing, quality assurance, and multiple export formats.
 
-## Features
+## ✨ Key Features
 
-ExactTranscriber offers a comprehensive suite of features for a smooth transcription experience:
+### 🤖 Agent-Based Architecture
+- **FileProcessingAgent**: Handles audio validation, chunking, and preprocessing
+- **TranscriptionAgent**: Orchestrates Gemini API calls with caching and retry logic
+- **QualityAssuranceAgent**: Analyzes transcript quality and suggests improvements
+- **EditingAssistantAgent**: Provides smart search, replace, and formatting tools
+- **ExportAgent**: Supports multiple export formats with customization options
 
-*   **Audio File Upload:**
-    *   Easily upload your audio files directly through the web interface.
-    *   Supported formats: MP3, WAV, M4A, FLAC, OGG.
-*   **Advanced Transcription:**
-    *   Utilizes Google's Gemini API for state-of-the-art speech-to-text conversion.
-    *   Option to select between different Gemini models (e.g., "Gemini 2.0 Flash", "Gemini 2.5 Flash") to balance speed and accuracy based on your needs.
-*   **In-App Transcript Editor:**
-    *   A built-in text editor allows for immediate review and correction of the generated transcript.
-    *   Make changes, fix errors, and refine speaker labels directly within the application.
-*   **Flexible Export Options:**
-    *   Download your original or edited transcript in multiple formats:
-        *   **TXT:** Plain text for easy sharing and universal compatibility.
-        *   **SRT:** SubRip Subtitle format, perfect for video captions.
-        *   **JSON:** Structured data format for programmatic use or integration with other tools.
-*   **Efficient Handling of Large Files:**
-    *   Automatic audio chunking for files exceeding a configurable size (e.g., 20MB), ensuring reliable processing of longer recordings.
-*   **Contextual Information:**
-    *   Option to provide context like audio type (podcast, interview), topic, description, and number of speakers to improve transcription accuracy.
-*   **Password Protection:**
-    *   Includes a basic password authentication mechanism for self-hosted instances to secure access.
+### 🎯 Core Capabilities
+- **High-Accuracy Transcription**: Powered by Gemini 2.5 Flash multimodal models
+- **Smart Chunking**: Automatically splits large files for optimal processing
+- **Quality Scoring**: Real-time transcript quality assessment (0-100 score)
+- **Intelligent Editing**: AI-powered suggestions and auto-formatting
+- **Multiple Export Formats**: TXT, SRT, VTT, JSON, XML, CSV, and more
+- **Progress Tracking**: Real-time updates during processing
+- **Error Recovery**: Automatic retry with exponential backoff
 
-## Installation & Setup
+### 🛠️ Smart Editing Tools
+- Find & replace with regex support
+- Auto-formatting (capitalization, punctuation, filler words)
+- Quality check with issue detection
+- Edit history with undo/redo
+- Context-aware suggestions
 
-Follow these steps to get ExactTranscriber running on your local machine:
+## 🚀 Quick Start
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/your-username/ExactTranscriber.git
-    cd ExactTranscriber
-    ```
-    *(Replace `your-username/ExactTranscriber.git` with the actual repository URL if different)*
+### Prerequisites
+- Python 3.8+
+- FFmpeg (for audio processing)
+- Google Gemini API key
 
-2.  **Install FFmpeg:**
-    FFmpeg is required for audio processing.
-    *   **Ubuntu/Debian:**
-        ```bash
-        sudo apt-get update && sudo apt-get install ffmpeg
-        ```
-    *   **macOS (using Homebrew):**
-        ```bash
-        brew install ffmpeg
-        ```
-    *   **Windows:**
-        Download the latest build from the [official FFmpeg website](https://ffmpeg.org/download.html). Ensure you add FFmpeg to your system's PATH environment variable.
+### Installation
 
-3.  **Create a Python Virtual Environment (Recommended):**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    ```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/ExactTranscriber.git
+   cd ExactTranscriber
+   ```
 
-4.  **Install Python Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+2. **Install dependencies**
+   ```bash
+   pip install -e .
+   ```
 
-5.  **Set Your Gemini API Key:**
-    You need a Google Cloud API key with the Gemini API enabled.
-    *   **Method 1: Environment Variable (Recommended for local development):**
-        Set the `GOOGLE_API_KEY` environment variable.
-        ```bash
-        export GOOGLE_API_KEY='YOUR_API_KEY_HERE'
-        ```
-        (On Windows, use `set GOOGLE_API_KEY=YOUR_API_KEY_HERE` or set it via System Properties)
-        You can also use `GEMINI_API_KEY` as a fallback.
-    *   **Method 2: Streamlit Secrets (Recommended for Streamlit Cloud deployment):**
-        If deploying on Streamlit Cloud, create a secrets file `.streamlit/secrets.toml` with the following content:
-        ```toml
-        GOOGLE_API_KEY = "YOUR_API_KEY_HERE"
-        # or alternatively
-        # GEMINI_API_KEY = "YOUR_API_KEY_HERE"
+3. **Install FFmpeg**
+   - macOS: `brew install ffmpeg`
+   - Ubuntu/Debian: `sudo apt update && sudo apt install ffmpeg`
+   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 
-        # For password protection (optional)
-        APP_PASSWORD = "your_secure_password"
-        ```
-        Make sure this `secrets.toml` file is *not* committed to version control. The `.gitignore` file already excludes it so your credentials remain private.
+4. **Configure secrets**
+   
+   Create `.streamlit/secrets.toml`:
+   ```toml
+   # App password
+   app_password = "your-secure-password"
+   
+   # Google API Key
+   GOOGLE_API_KEY = "your-gemini-api-key"
+   ```
 
-6.  **Run the Application:**
-    ```bash
-    streamlit run main.py
-    ```
-    Your default web browser should open with the ExactTranscriber application.
+5. **Run the application**
+   ```bash
+   streamlit run main.py
+   ```
 
-## Basic Usage
+   The app will be available at `http://localhost:5000`
 
-1.  **Enter Password:** If password protection is enabled for your instance, you'll be prompted to enter it.
-2.  **Select Model:** Choose your preferred Gemini transcription model (e.g., "Gemini 2.5 Flash" for speed, or others for potentially higher accuracy if available).
-3.  **Upload Audio File:** Click the upload button and select your audio file (MP3, WAV, OGG, etc.).
-4.  **Provide Context (Optional):** Expand the "Optional Context" section to specify the audio type, topic, language, description, and number of speakers. This can significantly improve transcription quality.
-5.  **Transcribe:** Click the "Transcribe" button to start the process. For larger files, this may take some time.
-6.  **View & Edit:** Once complete, the transcript will appear in the "Transcript" tab. Use the "Edit" tab to make any necessary corrections. Remember to click "Save Edits".
-7.  **Export:** Go to the "Export" tab, select your desired format (TXT, SRT, JSON), and click "Download".
+## 📋 Configuration
 
-## License
+### Available Models
+- **Gemini 2.5 Flash**: Fast, high-quality transcription
+- **Gemini 2.5 Flash Lite**: Lighter model for faster processing
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+### Environment Variables
+- `GOOGLE_API_KEY`: Your Gemini API key (alternative to secrets.toml)
+- `APP_PASSWORD`: Application password (alternative to secrets.toml)
 
-## Contributing
+## 🎯 Usage
 
-Contributions are welcome! If you'd like to help improve ExactTranscriber, please see our [CONTRIBUTING.md](CONTRIBUTING.md) guide for more information on how to get started, report bugs, or suggest new features.
+1. **Login**: Enter the password configured in secrets.toml
+2. **Upload Audio**: Select your audio file (supports MP3, WAV, M4A, FLAC, OGG, MP4, WEBM)
+3. **Configure Settings**:
+   - Select transcription model
+   - Set number of speakers
+   - Add optional context (topic, description)
+4. **Transcribe**: Click "Transcribe Audio" and monitor progress
+5. **Review Quality**: Check the quality score and metrics
+6. **Edit**: Use smart editing tools to refine the transcript
+7. **Export**: Choose format and download
 
-## Running Tests
+## 🏗️ Architecture
 
-To run the unit test suite, install dependencies and execute `pytest`:
-
-```bash
-pip install -r requirements.txt
-pytest
+### Agent System
+```
+┌─────────────────────┐
+│ WorkflowCoordinator │
+└──────────┬──────────┘
+           │
+    ┌──────┴──────┐
+    │   Supervisor │
+    └──────┬──────┘
+           │
+    ┌──────┴────────────────────────────┐
+    │                                   │
+┌───▼────────┐  ┌──────────────┐  ┌───▼──────────┐
+│FileProcessor│  │ Transcriber  │  │QualityAssure │
+└────────────┘  └──────────────┘  └──────────────┘
+                                           │
+                        ┌──────────────────┴─────────────┐
+                        │                                │
+                  ┌─────▼──────┐              ┌─────────▼──┐
+                  │EditAssistant│              │  Exporter  │
+                  └─────────────┘              └────────────┘
 ```
 
-## Additional Documentation
+### Message Flow
+1. User uploads audio → FileProcessingAgent validates and chunks
+2. TranscriptionAgent processes chunks with Gemini API
+3. QualityAssuranceAgent analyzes transcript quality
+4. EditingAssistantAgent provides editing capabilities
+5. ExportAgent handles format conversion
 
-For a deeper look at the project, refer to the [ExactTranscriber Deepwiki page](https://deepwiki.com/cyanxxy/ExactTranscriber).
+## 📊 Quality Metrics
 
+The app provides comprehensive quality analysis:
+- **Readability Score**: Based on sentence length and structure
+- **Sentence Variety**: Measures variation in sentence patterns
+- **Vocabulary Richness**: Analyzes word diversity
+- **Punctuation Density**: Checks proper punctuation usage
+- **Timestamp Coverage**: For timestamped transcripts
+
+## 🔧 Advanced Features
+
+### Batch Processing
+Process multiple audio files simultaneously with progress tracking for each file.
+
+### Smart Editing
+- **Auto-format**: Fix capitalization, punctuation, remove filler words
+- **Find & Replace**: Support for regex and case-sensitive search
+- **Quality Check**: Detect repeated words, missing punctuation, inconsistencies
+
+### Export Options
+- **TXT**: Plain text with optional formatting
+- **SRT/VTT**: Subtitle formats with timing
+- **JSON**: Structured data with metadata
+- **CSV**: Tabular format for analysis
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **"API key not found"**
+   - Ensure GOOGLE_API_KEY is set in secrets.toml or environment
+
+2. **"File too large"**
+   - Maximum file size is 200MB
+   - Large files are automatically chunked
+
+3. **"FFmpeg not found"**
+   - Install FFmpeg and ensure it's in your PATH
+
+4. **Import errors**
+   - Run `pip install -r requirements.txt` to install all dependencies
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Google Gemini team for the powerful multimodal AI
+- Streamlit for the excellent web framework
+- The open-source community for various dependencies
+
+---
+
+**Note**: This application requires a valid Google Gemini API key. Get yours at [Google AI Studio](https://makersuite.google.com/app/apikey).

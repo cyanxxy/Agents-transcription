@@ -10,12 +10,12 @@ ExactTranscriber is a Streamlit application that transcribes audio files using G
 
 1. **Required Dependencies:**
    - FFmpeg must be installed on the system
-   - Python dependencies are managed through requirements.txt
+   - Python dependencies are managed through pyproject.toml
 
 2. **Run the Application:**
    ```bash
    # Install dependencies
-   pip install -r requirements.txt
+   pip install -e .
    
    # Run the application
    streamlit run main.py
@@ -27,10 +27,21 @@ ExactTranscriber is a Streamlit application that transcribes audio files using G
 
 ## Project Structure
 
-- **main.py**: Entry point for the Streamlit application, contains the UI and core transcription workflow
-- **utils.py**: Utility functions for transcription, audio processing, and format conversion
+- **main.py**: Entry point with agent-based architecture and enhanced UI
+- **agents/**: Agent system for modular processing
+  - `base_agent.py`: Base class and supervisor
+  - `file_processing_agent.py`: Audio file handling
+  - `transcription_agent.py`: Gemini API orchestration
+  - `quality_assurance_agent.py`: Quality analysis
+  - `editing_assistant_agent.py`: Smart editing features
+  - `export_agent.py`: Multi-format export
+  - `workflow_coordinator.py`: Agent orchestration
+- **ui_components.py**: Reusable UI components
+- **state_manager.py**: Session state management
+- **api_client.py**: Gemini API initialization
 - **styles.py**: CSS styling for the Streamlit UI
-- **requirements.txt**: Python dependencies
+- **config.py**: Configuration constants
+- **app_setup.py**: Application initialization
 
 ## Key Components
 
@@ -51,12 +62,12 @@ ExactTranscriber is a Streamlit application that transcribes audio files using G
 ## Common Development Tasks
 
 1. **Adding a New Export Format**:
-   - Implement a new format handler in `format_transcript_for_export()` in utils.py
-   - Update the format options in main.py
+   - Add new format handler in `ExportAgent` class (`agents/export_agent.py`)
+   - Update the format options in `EXPORT_FORMATS` in config.py
 
 2. **Updating Transcription Models**:
-   - Models are defined in the `model_mapping` dictionary in main.py
-   - Update the model IDs as needed when new models are available
+   - Models are defined in the `GEMINI_MODELS` dictionary in config.py
+   - Currently configured: Gemini 2.5 Flash and Gemini 2.5 Flash Lite
 
 3. **UI Customization**:
    - Most styling is centralized in styles.py

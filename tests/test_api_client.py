@@ -5,7 +5,7 @@ from jinja2 import Template
 
 # Assuming config.py and api_client.py are in the parent directory or accessible in PYTHONPATH
 from config import GEMINI_MODELS, DEFAULT_MODEL
-from api_client import initialize_gemini, get_transcription_prompt, process_audio_chunk
+from api_client import initialize_gemini, get_transcription_prompt
 
 @pytest.fixture
 def mock_st_secrets(mocker):
@@ -176,87 +176,3 @@ def test_get_transcription_prompt_renders_without_optional_metadata():
     assert "Language:" not in rendered_prompt
     assert "content_type: audio file" # Default content type
     assert f"Number of distinct speakers: {num_speakers}" in rendered_prompt
-
-# Tests for process_audio_chunk (mocking API calls heavily)
-@pytest.fixture
-def mock_gemini_process_flow(mock_genai_client):
-    client_instance, _ = mock_genai_client
-    
-    # Mock file upload
-    mock_uploaded_file = MagicMock()
-    client_instance.files.upload.return_value = mock_uploaded_file
-    
-    # Mock content generation
-    mock_response = MagicMock()
-    # Simulate the structure of the response object based on usage in process_audio_chunk
-    # Option 1: response has .text attribute
-    # mock_response.text = "This is a dummy transcript."
-    # Option 2: response has .candidates
-    mock_candidate = MagicMock()
-    mock_part = MagicMock()
-    mock_part.text = "This is a dummy transcript from candidate."
-    mock_candidate.content.parts = [mock_part]
-    mock_response.candidates = [mock_candidate]
-
-    client_instance.models.generate_content.return_value = mock_response
-    
-    return client_instance, mock_uploaded_file, mock_response
-
-def test_process_audio_chunk_success(mock_gemini_process_flow):
-    client, _, _ = mock_gemini_process_flow
-    model_name = "gemini-test-model"
-    chunk_path = "/fake/path/to/chunk.mp3"
-    prompt = "Transcribe this."
-    mime_type = "audio/mpeg"
-    chunk_index = 0
-
-    transcript, error = process_audio_chunk(client, model_name, chunk_path, prompt, mime_type, chunk_index)
-
-    assert error is None
-    assert "dummy transcript" in transcript # Check based on mock_response content
-    client.files.upload.assert_called_once_with(file=chunk_path, config={"mimeType": mime_type})
-    client.models.generate_content.assert_called_once() # Basic check, can be more specific
-
-def test_process_audio_chunk_upload_failure(mock_gemini_process_flow):
-    client, _, _ = mock_gemini_process_flow
-    client.files.upload.side_effect = Exception("Upload failed")
-
-    transcript, error = process_audio_chunk(client, "m", "/p", "pr", "mi", 0)
-    assert transcript is None
-    assert "Upload failed" in error or "Chunk upload failed" in error # Depending on error handling in main code
-    client.models.generate_content.assert_not_called()
-
-def test_process_audio_chunk_transcription_failure(mock_gemini_process_flow):
-    client, _, _ = mock_gemini_process_flow
-    client.models.generate_content.side_effect = Exception("Transcription API error")
-
-    transcript, error = process_audio_chunk(client, "m", "/p", "pr", "mi", 0)
-    assert transcript is None
-    assert "Transcription API error" in error
-    client.files.upload.assert_called_once() # Upload should still be called
-
-def test_process_audio_chunk_text_extraction_failure(mock_gemini_process_flow):
-    client, _, mock_response = mock_gemini_process_flow
-    # Make the response object such that text extraction fails (e.g., no .text and no .candidates)
-    if hasattr(mock_response, 'text'): del mock_response.text
-    if hasattr(mock_response, 'candidates'): del mock_response.candidates
-    # Or, make candidates an empty list, or parts an empty list, etc.
-    # mock_response.candidates = [] 
-
-    transcript, error = process_audio_chunk(client, "m", "/p", "pr", "mi", 0)
-    assert transcript is None
-    assert "Could not extract transcript text" in error
-
-def test_process_audio_chunk_upload_auth_error(mock_gemini_process_flow):
-    client, _, _ = mock_gemini_process_flow
-    client.files.upload.side_effect = Exception("unauthorized access")
-    transcript, error = process_audio_chunk(client, "m", "/p", "pr", "mi", 0)
-    assert transcript is None
-    assert "API authentication error" in error
-
-def test_process_audio_chunk_upload_quota_error(mock_gemini_process_flow):
-    client, _, _ = mock_gemini_process_flow
-    client.files.upload.side_effect = Exception("quota exceeded")
-    transcript, error = process_audio_chunk(client, "m", "/p", "pr", "mi", 0)
-    assert transcript is None
-    assert "API quota exceeded" in error

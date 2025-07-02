@@ -1,10 +1,10 @@
 """
 API Client module for ExactTranscriber.
-This module provides functions for interacting with the Gemini API.
+This module provides minimal functions for API initialization.
 """
 import os
 import logging
-from typing import Tuple, Dict, Any, Optional, List
+from typing import Tuple, Dict, Any, Optional
 
 import streamlit as st
 import google.generativeai as genai
@@ -175,57 +175,3 @@ Don't use any markdown formatting, like bolding or italics.
 Only use characters from the English alphabet, unless you genuinely believe foreign characters are correct.
 
 It is important that you use the correct words and spell everything correctly. Use the context to help.""")
-
-def process_audio_chunk(client, model_name: str, chunk_path: str, 
-                        prompt: str, mime_type: str, chunk_index: int) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Process a single audio chunk through the Gemini API.
-    
-    Args:
-        client: Initialized Gemini client
-        model_name: The model ID to use
-        chunk_path: Path to the audio chunk file
-        prompt: The transcription prompt
-        mime_type: MIME type of the audio file
-        chunk_index: Index of the chunk for logging
-        
-    Returns:
-        Tuple of (transcription_text, error_message)
-    """
-    try:
-        # API upload step
-        try:
-            chunk_file = client.files.upload(file=chunk_path, config={"mimeType": mime_type})
-        except Exception as upload_err:
-            error_msg = f"Failed to upload chunk {chunk_index+1} to Gemini API: {str(upload_err)}"
-            logging.error(error_msg)
-            if "unauthorized" in str(upload_err).lower() or "authentication" in str(upload_err).lower():
-                return None, f"API authentication error: {str(upload_err)}"
-            if "quota" in str(upload_err).lower():
-                return None, f"API quota exceeded: {str(upload_err)}"
-            return None, f"Chunk upload failed: {str(upload_err)}"
-        
-        # Transcription step
-        try:
-            chunk_response = client.models.generate_content(
-                model=model_name,
-                contents=[prompt, chunk_file],
-            )
-        except Exception as transcribe_err:
-            error_msg = f"Failed to transcribe chunk {chunk_index+1}: {str(transcribe_err)}"
-            logging.error(error_msg)
-            return None, f"Transcription API error: {str(transcribe_err)}"
-        
-        # Extract transcript text
-        try:
-            chunk_text = (chunk_response.text if hasattr(chunk_response, 'text') 
-                          else chunk_response.candidates[0].content.parts[0].text)
-            return chunk_text, None
-        except Exception as extract_err:
-            error_msg = f"Failed to extract text from chunk {chunk_index+1} response: {str(extract_err)}"
-            logging.error(error_msg)
-            return None, f"Could not extract transcript text: {str(extract_err)}"
-            
-    except Exception as e:
-        logging.error(f"Unexpected error processing chunk {chunk_index+1}: {str(e)}", exc_info=True)
-        return None, f"Unexpected error: {str(e)}"

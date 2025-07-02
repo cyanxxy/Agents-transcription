@@ -16,9 +16,9 @@ ffmpeg -version || echo "Could not get ffmpeg version"
 echo "Upgrading pip..."
 pip install --upgrade pip
 
-echo "-----> Installing Python dependencies from requirements.txt..."
+echo "-----> Installing Python dependencies from pyproject.toml..."
 # Add -vvv for verbose output from pip
-pip install -r requirements.txt --no-cache-dir -vvv
+pip install . --no-cache-dir -vvv
 echo "-----> Python dependencies installation attempt complete."
 
 echo "-----> Checking google-generativeai installation..."

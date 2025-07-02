@@ -1,1 +1,0 @@
-# System dependencies are handled by Aptfile and heroku-buildpack-apt

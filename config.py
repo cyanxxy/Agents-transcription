@@ -13,13 +13,12 @@ LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
 # --------- API Configuration ---------
 # Supported Gemini model IDs
 GEMINI_MODELS = {
-    "Gemini 2.0 Flash": "gemini-2.0-flash-exp",
-    "Gemini 1.5 Pro": "gemini-1.5-pro",
-    "Gemini 1.5 Flash": "gemini-1.5-flash"
+    "Gemini 2.5 Flash": "gemini-2.5-flash",
+    "Gemini 2.5 Flash Lite": "gemini-2.5-flash-lite-preview-06-17"
 }
 
 # Default model to use
-DEFAULT_MODEL = "Gemini 1.5 Flash"
+DEFAULT_MODEL = "Gemini 2.5 Flash"
 
 # --------- File Processing Configuration ---------
 # MIME type mapping for audio formats

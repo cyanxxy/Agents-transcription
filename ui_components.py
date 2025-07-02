@@ -113,10 +113,14 @@ def render_file_upload() -> Tuple[Optional[Any], bool]:
         process_button = False
         
         if uploaded_file:
-            from file_utils import validate_audio_file
+            # Simple validation inline
+            valid_extensions = ['.mp3', '.wav', '.m4a', '.flac', '.ogg', '.mp4', '.webm']
+            file_ext = os.path.splitext(uploaded_file.name)[1].lower()
             
-            if not validate_audio_file(uploaded_file):
-                pass  # Validation error shown in validate_audio_file
+            if file_ext not in valid_extensions:
+                st.error(f"Unsupported file type: {file_ext}. Please upload a valid audio file.")
+            elif uploaded_file.size > 200 * 1024 * 1024:  # 200MB limit
+                st.error("File too large. Please upload a file smaller than 200MB.")
             else:
                 file_size_mb = uploaded_file.size / (1024 * 1024)
                 st.caption(f"File: {uploaded_file.name} ({file_size_mb:.1f} MB)")
@@ -230,12 +234,27 @@ def render_export_options(uploaded_file_name: str):
             st.session_state.get("edited_transcript", st.session_state.get("transcript_text", ""))
         )
         
-        # Format content for export
-        from transcript_utils import format_transcript_for_export
-        formatted_content = format_transcript_for_export(
-            export_content, 
-            format=format_info["extension"]
-        )
+        # Format content for export based on type
+        if format_info["extension"] == ".txt":
+            formatted_content = export_content
+        elif format_info["extension"] == ".srt":
+            # Simple SRT formatting
+            lines = export_content.split('\n')
+            formatted_content = ""
+            counter = 1
+            for line in lines:
+                if line.strip():
+                    formatted_content += f"{counter}\n00:00:{counter:02d},000 --> 00:00:{counter+5:02d},000\n{line}\n\n"
+                    counter += 1
+        elif format_info["extension"] == ".json":
+            import json
+            formatted_content = json.dumps({
+                "transcript": export_content,
+                "filename": st.session_state.get("current_file_name", "unknown"),
+                "timestamp": str(st.session_state.get("transcription_timestamp", ""))
+            }, indent=2)
+        else:
+            formatted_content = export_content
         
         # Generate filename
         base_filename = os.path.splitext(uploaded_file_name)[0]

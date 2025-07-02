@@ -23,10 +23,9 @@ services:
     healthCheckPath: "/_stcore/health"
     buildFilter:
       paths:
-        - .render-packages.txt
         - .render-buildpacks.txt
         - Aptfile
-        - requirements.txt
+        - pyproject.toml
         - runtime.txt
         - render-build.sh
         - main.py
