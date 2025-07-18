@@ -291,7 +291,6 @@ def render_footer():
     """Render the application footer."""
     st.markdown(
         "<div style='text-align: center; color: #888; font-size: 0.8em; margin-top: 50px;'>"
-        "<a href='https://www.linkedin.com/in/mansour-damanpak/' target='_blank' "
-        "style='color: #1E88E5; text-decoration: none;'>Developed by Mansour Damanpak</a></div>", 
+        "ExactTranscriber - Precision audio transcription powered by AI</div>", 
         unsafe_allow_html=True
     )

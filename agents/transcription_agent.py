@@ -1,9 +1,8 @@
 """Transcription Agent for orchestrating Gemini API calls"""
 
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import json
 from datetime import datetime
 
 from .base_agent import BaseAgent, Message, MessageType

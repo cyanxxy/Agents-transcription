@@ -156,7 +156,7 @@ def apply_custom_styles():
     """
     st.markdown(custom_css, unsafe_allow_html=True)
 
-def format_transcript_line(line):
+def format_transcript_line(line: str) -> str:
     """Format a transcript line with styled timestamps and speakers"""
     if '[' in line and ']' in line:
         timestamp = line[line.find('['): line.find(']') + 1]

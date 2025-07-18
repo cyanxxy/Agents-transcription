@@ -2,7 +2,6 @@
 Configuration for the ExactTranscriber application.
 This module centralizes constants and settings used throughout the application.
 """
-import os
 import logging
 
 # --------- Logging Configuration ---------
@@ -79,3 +78,14 @@ DEFAULT_SUBTITLE_DURATION_SECONDS = 3
 # --------- Validation Configuration ---------
 # Valid export formats
 VALID_EXPORT_FORMATS = ['txt', 'srt', 'json']
+
+# --------- Retry Configuration ---------
+# Maximum number of retries for API calls
+MAX_RETRIES = 3
+
+# Initial delay between retries in seconds
+RETRY_DELAY = 1.0
+
+# --------- File Size Configuration ---------
+# Maximum file size in MB for validation
+MAX_FILE_SIZE_MB = 200

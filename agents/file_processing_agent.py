@@ -273,7 +273,7 @@ class FileProcessingAgent(BaseAgent):
         temp_dir = tempfile.gettempdir()
         
         # Generate unique filename
-        unique_filename = f"{hashlib.md5(filename.encode()).hexdigest()}_{filename}"
+        unique_filename = f"{hashlib.sha256(filename.encode()).hexdigest()[:16]}_{filename}"
         temp_path = os.path.join(temp_dir, unique_filename)
         
         # Write file data

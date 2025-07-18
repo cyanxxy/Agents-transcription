@@ -56,7 +56,12 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
 
 4. **Configure secrets**
    
-   Create `.streamlit/secrets.toml`:
+   Copy the example secrets file and update with your values:
+   ```bash
+   cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+   ```
+   
+   Edit `.streamlit/secrets.toml`:
    ```toml
    # App password
    app_password = "your-secure-password"
@@ -64,6 +69,8 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
    # Google API Key
    GOOGLE_API_KEY = "your-gemini-api-key"
    ```
+   
+   **⚠️ Security Note**: Never commit `secrets.toml` to version control. The `.gitignore` file is already configured to exclude it.
 
 5. **Run the application**
    ```bash
