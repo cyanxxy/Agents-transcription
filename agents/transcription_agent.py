@@ -8,6 +8,11 @@ from datetime import datetime
 from .base_agent import BaseAgent, Message, MessageType
 from ..api_client import initialize_gemini, get_transcription_prompt
 from ..config import MAX_RETRIES, RETRY_DELAY, GEMINI_MODELS
+from utils.error_handler import (
+    with_retry, with_error_handling, ErrorCategory, ErrorSeverity,
+    StructuredError, RetryConfig, ErrorHandler
+)
+from utils.async_handler import async_streamlit
 import google.generativeai as genai
 
 
@@ -30,19 +35,35 @@ class TranscriptionAgent(BaseAgent):
         """Return list of capabilities"""
         return self._capabilities
     
+    @with_error_handling(category=ErrorCategory.API_ERROR, severity=ErrorSeverity.HIGH)
     def _ensure_api_client(self, model_name: str) -> bool:
-        """Ensure API client is initialized"""
+        """Ensure API client is initialized with error handling"""
         if self.api_client is None:
-            client, error, model_id = initialize_gemini(model_name)
-            if error:
-                self.logger.error(f"Failed to initialize Gemini API: {error}")
-                return False
-            self.api_client = client
-            self.model_id = model_id
+            try:
+                client, error, model_id = initialize_gemini(model_name)
+                if error:
+                    raise StructuredError(
+                        message=f"Failed to initialize Gemini API: {error}",
+                        category=ErrorCategory.API_ERROR,
+                        severity=ErrorSeverity.HIGH,
+                        user_message="Unable to connect to Gemini API"
+                    )
+                self.api_client = client
+                self.model_id = model_id
+            except StructuredError:
+                raise
+            except Exception as e:
+                raise StructuredError(
+                    message=str(e),
+                    category=ErrorCategory.API_ERROR,
+                    severity=ErrorSeverity.HIGH,
+                    user_message="Failed to initialize API client"
+                )
         return True
     
+    @with_error_handling(category=ErrorCategory.PROCESSING_ERROR)
     async def process_message(self, message: Message) -> Optional[Message]:
-        """Process transcription-related messages"""
+        """Process transcription-related messages with structured error handling"""
         try:
             action = message.content.get("action")
             
@@ -64,8 +85,14 @@ class TranscriptionAgent(BaseAgent):
                     MessageType.ERROR
                 )
                 
+        except StructuredError as e:
+            self.logger.error(f"Structured error in TranscriptionAgent: {e.message}")
+            return message.reply(
+                {"error": e.user_message, "details": e.details, "recoverable": e.recoverable},
+                MessageType.ERROR
+            )
         except Exception as e:
-            self.logger.error(f"Error in TranscriptionAgent: {e}")
+            self.logger.error(f"Unexpected error in TranscriptionAgent: {e}")
             return message.reply(
                 {"error": str(e), "details": "Transcription failed"},
                 MessageType.ERROR
@@ -107,11 +134,17 @@ class TranscriptionAgent(BaseAgent):
         try:
             start_time = datetime.now()
             
-            # Upload file and transcribe
-            transcript = await self._transcribe_with_retry(
-                file_path, 
+            # Upload file and transcribe with automatic retry
+            error_handler = ErrorHandler()
+            retry_config = RetryConfig(max_attempts=MAX_RETRIES, initial_delay=RETRY_DELAY)
+            
+            transcript = await error_handler.handle_with_retry(
+                self._transcribe_file,
+                file_path,
                 model_name,
-                custom_prompt
+                custom_prompt,
+                retry_config=retry_config,
+                error_category=ErrorCategory.API_ERROR
             )
             
             processing_time = (datetime.now() - start_time).total_seconds()

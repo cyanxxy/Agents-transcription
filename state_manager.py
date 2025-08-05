@@ -6,9 +6,24 @@ import streamlit as st
 import logging
 from typing import Any, Dict, Optional, List
 from dataclasses import dataclass, field
+from utils.state_optimizer import (
+    get_state_optimizer, batch_state_updates, 
+    StateOptimizer, StatePersistence
+)
 
 def initialize_state() -> None:
     """Initialize all required session state variables with default values."""
+    optimizer = get_state_optimizer()
+    
+    # Load persistent state if available
+    persistent_data = StatePersistence.load_state('app_state', storage='local')
+    
+    if persistent_data:
+        # Restore persistent state
+        for key, value in persistent_data.items():
+            if key not in ['password_correct', 'processing_status']:  # Don't restore sensitive/temporary state
+                _init_state_var(key, value)
+    
     # Authentication state
     _init_state_var("password_correct", False)
     
@@ -47,7 +62,7 @@ def _init_state_var(key: str, default_value: Any) -> None:
 
 def get_state(key: str, default: Any = None) -> Any:
     """
-    Safely get a value from session state.
+    Safely get a value from session state with caching.
     
     Args:
         key: The key to get from session state
@@ -56,37 +71,44 @@ def get_state(key: str, default: Any = None) -> Any:
     Returns:
         The value from session state or the default
     """
-    return st.session_state.get(key, default)
+    optimizer = get_state_optimizer()
+    return optimizer.get(key, default)
 
-def set_state(key: str, value: Any) -> None:
+def set_state(key: str, value: Any, immediate: bool = True) -> None:
     """
-    Set a value in session state.
+    Set a value in session state with optimization.
     
     Args:
         key: The key to set in session state
         value: The value to set
+        immediate: Whether to update immediately or batch
     """
-    st.session_state[key] = value
+    optimizer = get_state_optimizer()
+    optimizer.set(key, value, immediate=immediate)
     
-def update_states(state_dict: Dict[str, Any]) -> None:
+def update_states(state_dict: Dict[str, Any], commit: bool = True) -> None:
     """
-    Update multiple session state variables at once.
+    Update multiple session state variables at once with batching.
     
     Args:
         state_dict: Dictionary of {key: value} pairs to update
+        commit: Whether to commit changes immediately
     """
-    for key, value in state_dict.items():
-        st.session_state[key] = value
+    optimizer = get_state_optimizer()
+    optimizer.batch_update(state_dict)
+    
+    if commit:
+        optimizer.commit_batch(rerun=False)
 
 def reset_transcript_states() -> None:
     """Reset all transcript-related state variables to defaults."""
-    update_states({
-        "transcript_text": None,
-        "edited_transcript": None,
-        "transcript_editor_content": "",
-        "processing_status": "idle",
-        "error_message": None
-    })
+    with batch_state_updates() as optimizer:
+        optimizer.set("transcript_text", None)
+        optimizer.set("edited_transcript", None)
+        optimizer.set("transcript_editor_content", "")
+        optimizer.set("processing_status", "idle")
+        optimizer.set("error_message", None)
+        optimizer.commit_batch(rerun=False)
     
 @dataclass
 class SessionStateValidator:
@@ -227,9 +249,26 @@ def is_file_complete(filename: str) -> bool:
 
 def clear_transcript_data() -> None:
     """Clear all transcript-related data from session state."""
-    update_states({
-        "transcript_text": None,
-        "edited_transcript": None,
-        "transcript_editor_content": "",
-        "current_file_name": None
-    })
+    with batch_state_updates() as optimizer:
+        optimizer.set("transcript_text", None)
+        optimizer.set("edited_transcript", None)
+        optimizer.set("transcript_editor_content", "")
+        optimizer.set("current_file_name", None)
+        optimizer.commit_batch(rerun=False)
+
+def save_state_to_persistent() -> None:
+    """Save current state to persistent storage."""
+    # Select which state to persist
+    persist_keys = [
+        "content_type_select", "language_select", 
+        "topic_input", "description_input", "num_speakers_input",
+        "export_format_select", "selected_model_id"
+    ]
+    
+    state_to_save = {k: get_state(k) for k in persist_keys if get_state(k) is not None}
+    StatePersistence.save_state('app_state', state_to_save, storage='local')
+
+def cached_computation(key: str, func, *args, ttl=None, **kwargs) -> Any:
+    """Perform a cached computation."""
+    optimizer = get_state_optimizer()
+    return optimizer.cached_computation(key, func, *args, ttl=ttl, **kwargs)

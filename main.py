@@ -21,6 +21,17 @@ from state_manager import initialize_state
 # Import agent system
 from agents.workflow_coordinator import WorkflowCoordinator, StreamlitAgentInterface
 
+# Import new utility modules
+from utils.async_handler import AsyncHandler, async_streamlit, run_async_task
+from utils.error_handler import (
+    ErrorHandler, StructuredError, ErrorCategory, ErrorSeverity,
+    with_error_handling, with_retry, RetryConfig
+)
+from utils.state_optimizer import (
+    StateOptimizer, batch_state_updates, smart_rerun,
+    get_state_optimizer, optimized_state
+)
+
 # Initialize logging
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -48,7 +59,7 @@ def check_password() -> bool:
             
             if password == correct_password:
                 st.session_state["password_correct"] = True
-                st.rerun()
+                smart_rerun()
             else:
                 st.error("😕 Password incorrect")
                 return False
@@ -59,10 +70,17 @@ def check_password() -> bool:
     return True
 
 
+@async_streamlit
+@with_error_handling(category=ErrorCategory.PROCESSING_ERROR)
 async def handle_transcription_with_agents(client, model_name: str, uploaded_file, metadata: dict, num_speakers: int) -> None:
-    """Handle transcription using the agent-based workflow."""
-    st.session_state.processing_status = "processing"
-    st.session_state.current_file_name = uploaded_file.name
+    """Handle transcription using the agent-based workflow with proper async handling."""
+    state_optimizer = get_state_optimizer()
+    
+    # Batch state updates
+    with batch_state_updates() as optimizer:
+        optimizer.set('processing_status', 'processing')
+        optimizer.set('current_file_name', uploaded_file.name)
+        optimizer.commit_batch(rerun=False)
     
     # Initialize agent interface
     agent_interface = StreamlitAgentInterface()
@@ -124,7 +142,7 @@ async def handle_transcription_with_agents(client, model_name: str, uploaded_fil
                 
                 # Wait a moment before rerun to show metrics
                 await asyncio.sleep(2)
-                st.rerun()
+                smart_rerun()
             else:
                 # Handle error
                 handle_transcription_error(", ".join(result["errors"]), uploaded_file.name)
@@ -148,9 +166,12 @@ def handle_transcription_error(error_message: str, filename: str, unexpected: bo
         logger.error(f"Transcription failed for {filename}: {error_message}")
     
     st.error(f"Transcription failed: {user_message}")
-    st.session_state.processing_status = "error"
-    st.session_state.error_message = user_message
-    st.rerun()
+    
+    # Batch state updates to reduce reruns
+    with batch_state_updates() as optimizer:
+        optimizer.set('processing_status', 'error')
+        optimizer.set('error_message', user_message)
+        optimizer.commit_batch(rerun=True)
 
 
 def render_quality_insights():
@@ -195,8 +216,10 @@ def render_quality_insights():
                 st.metric("Timestamp Coverage", f"{metrics.get('timestamp_coverage', 0):.0f}%")
 
 
+@async_streamlit
+@with_error_handling(category=ErrorCategory.PROCESSING_ERROR)
 async def handle_smart_editing(action: str, **kwargs):
-    """Handle smart editing actions using agents"""
+    """Handle smart editing actions using agents with proper error handling"""
     agent_interface = StreamlitAgentInterface()
     
     with st.spinner(f"Performing {action}..."):
@@ -207,13 +230,18 @@ async def handle_smart_editing(action: str, **kwargs):
         )
         
         if result.get("success"):
-            # Update transcript
-            if "new_transcript" in result:
-                st.session_state.edited_transcript = result["new_transcript"]
-                st.session_state.transcript_editor_content = result["new_transcript"]
-            elif "formatted_transcript" in result:
-                st.session_state.edited_transcript = result["formatted_transcript"]
-                st.session_state.transcript_editor_content = result["formatted_transcript"]
+            # Batch state updates
+            with batch_state_updates() as optimizer:
+                # Update transcript
+                if "new_transcript" in result:
+                    optimizer.set('edited_transcript', result["new_transcript"])
+                    optimizer.set('transcript_editor_content', result["new_transcript"])
+                elif "formatted_transcript" in result:
+                    optimizer.set('edited_transcript', result["formatted_transcript"])
+                    optimizer.set('transcript_editor_content', result["formatted_transcript"])
+                
+                # Commit changes
+                optimizer.commit_batch(rerun=False)
             
             # Show success message
             if "changes_applied" in result:
@@ -221,9 +249,13 @@ async def handle_smart_editing(action: str, **kwargs):
             elif "replacement_count" in result:
                 st.success(f"Replaced {result['replacement_count']} occurrences")
             
-            st.rerun()
+            smart_rerun()
         else:
-            st.error(result.get("error", "Operation failed"))
+            raise StructuredError(
+                message=result.get("error", "Operation failed"),
+                category=ErrorCategory.PROCESSING_ERROR,
+                user_message=f"Failed to {action.replace('_', ' ')}"
+            )
 
 
 def render_editing_tools():
@@ -241,7 +273,7 @@ def render_editing_tools():
                 whole_word = st.checkbox("Whole words only")
             
             if st.button("Replace All", type="primary"):
-                asyncio.run(handle_smart_editing(
+                run_async_task(handle_smart_editing(
                     "replace_text",
                     find=find_text,
                     replace=replace_text,
@@ -257,7 +289,7 @@ def render_editing_tools():
             fix_numbers = st.checkbox("Standardize numbers")
             
             if st.button("Apply Auto-Format", type="primary"):
-                asyncio.run(handle_smart_editing(
+                run_async_task(handle_smart_editing(
                     "auto_format",
                     options={
                         "fix_capitalization": fix_caps,
@@ -270,11 +302,11 @@ def render_editing_tools():
         with tab3:
             if st.button("Run Quality Check"):
                 agent_interface = StreamlitAgentInterface()
-                coordinator = asyncio.run(agent_interface.initialize())
+                coordinator = run_async_task(agent_interface.initialize())
                 
                 with st.spinner("Analyzing transcript quality..."):
                     from agents.base_agent import Message, MessageType
-                    errors_result = asyncio.run(coordinator.supervisor.route_message(
+                    errors_result = run_async_task(coordinator.supervisor.route_message(
                         Message(
                             sender="ui",
                             recipient="QualityAssurance",
@@ -301,7 +333,7 @@ def render_editing_tools():
         with tab4:
             if st.button("Show Edit History"):
                 agent_interface = StreamlitAgentInterface()
-                history_result = asyncio.run(agent_interface.edit_with_agent(
+                history_result = run_async_task(agent_interface.edit_with_agent(
                     transcript="",
                     action="get_history",
                     limit=10
@@ -335,11 +367,25 @@ def main():
     st.markdown("<p class='subtitle'>Precision audio transcription powered by Gemini AI and Smart Agents</p>", 
                 unsafe_allow_html=True)
     
-    # Check API initialization
-    client, error, _ = initialize_gemini()
-    if error:
-        st.error(f"⚠️ {error}")
-        st.info("Please check your API key configuration and try again.")
+    # Check API initialization with proper error handling
+    try:
+        client, error, _ = initialize_gemini()
+        if error:
+            st.error(f"⚠️ {error}")
+            st.info("Please check your API key configuration and try again.")
+            st.stop()
+    except StructuredError as e:
+        st.error(f"⚠️ {e.user_message}")
+        if e.category == ErrorCategory.AUTHENTICATION_ERROR:
+            st.info("Please check your API key configuration and try again.")
+        elif e.category == ErrorCategory.NETWORK_ERROR:
+            st.info("Please check your internet connection and try again.")
+        elif e.recoverable:
+            if st.button("Retry"):
+                smart_rerun()
+        st.stop()
+    except Exception as e:
+        st.error(f"⚠️ Unexpected error initializing API: {str(e)}")
         st.stop()
     
     # Render components based on state
@@ -361,7 +407,7 @@ def main():
                 if key in st.session_state:
                     del st.session_state[key]
             st.session_state.processing_status = "idle"
-            st.rerun()
+            smart_rerun()
     
     elif st.session_state.processing_status == "processing":
         # Show processing status
@@ -373,7 +419,7 @@ def main():
         st.error(f"Error: {st.session_state.get('error_message', 'Unknown error')}")
         if st.button("Try Again"):
             st.session_state.processing_status = "idle"
-            st.rerun()
+            smart_rerun()
     
     else:
         # Show upload interface
@@ -393,9 +439,15 @@ def main():
         
         # Process uploaded file
         if uploaded_file and st.button("🚀 Transcribe Audio", type="primary"):
-            asyncio.run(handle_transcription_with_agents(
-                client, model_name, uploaded_file, metadata, num_speakers
-            ))
+            # Use async handler instead of asyncio.run
+            async_handler = AsyncHandler()
+            async_handler.run_in_background(
+                handle_transcription_with_agents(
+                    client, model_name, uploaded_file, metadata, num_speakers
+                ),
+                task_id="transcription",
+                callback=lambda result: smart_rerun()
+            )
     
     # Footer
     render_footer()

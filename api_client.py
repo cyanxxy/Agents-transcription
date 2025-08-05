@@ -11,7 +11,13 @@ import google.generativeai as genai
 from jinja2 import Template
 
 from config import GEMINI_MODELS, DEFAULT_MODEL
+from utils.error_handler import (
+    with_retry, with_error_handling, ErrorCategory, ErrorSeverity,
+    StructuredError, RetryConfig
+)
 
+@with_retry(max_attempts=3, category=ErrorCategory.API_ERROR)
+@with_error_handling(category=ErrorCategory.API_ERROR, severity=ErrorSeverity.HIGH)
 def initialize_gemini(model_name: Optional[str] = None) -> Tuple[Any, Optional[str], str]:
     """
     Initialize the Gemini client.
@@ -62,9 +68,13 @@ def initialize_gemini(model_name: Optional[str] = None) -> Tuple[Any, Optional[s
 
     # If API key is still not found
     if not api_key:
-        error_message = "API key not found. Please set GOOGLE_API_KEY in Streamlit secrets or as an environment variable."
-        logging.error(error_message)
-        return None, error_message, None
+        raise StructuredError(
+            message="API key not found",
+            category=ErrorCategory.AUTHENTICATION_ERROR,
+            severity=ErrorSeverity.CRITICAL,
+            user_message="API key not found. Please set GOOGLE_API_KEY in Streamlit secrets or as an environment variable.",
+            recoverable=False
+        )
 
     try:
         # Configure the API key
@@ -101,25 +111,47 @@ def initialize_gemini(model_name: Optional[str] = None) -> Tuple[Any, Optional[s
     except Exception as e:
         # Categorize different API client initialization errors
         if "invalid api key" in str(e).lower() or "unauthorized" in str(e).lower():
-            error_message = "Invalid API key. Please check your API key and try again."
+            raise StructuredError(
+                message=str(e),
+                category=ErrorCategory.AUTHENTICATION_ERROR,
+                severity=ErrorSeverity.CRITICAL,
+                user_message="Invalid API key. Please check your API key and try again.",
+                recoverable=False
+            )
         elif "quota" in str(e).lower() or "rate limit" in str(e).lower():
-            error_message = "API quota exceeded or rate limited. Please try again later."
+            raise StructuredError(
+                message=str(e),
+                category=ErrorCategory.API_ERROR,
+                severity=ErrorSeverity.HIGH,
+                user_message="API quota exceeded or rate limited. Please try again later.",
+                details={'retry_after': 60},
+                recoverable=True
+            )
         elif "network" in str(e).lower() or "connection" in str(e).lower():
-            error_message = "Network error connecting to Gemini API. Please check your internet connection."
+            raise StructuredError(
+                message=str(e),
+                category=ErrorCategory.NETWORK_ERROR,
+                severity=ErrorSeverity.HIGH,
+                user_message="Network error connecting to Gemini API. Please check your internet connection.",
+                recoverable=True
+            )
         else:
-            error_message = f"Failed to initialize Gemini client: {str(e)}"
+            # Clean up potentially sensitive info from error
+            error_msg = str(e)
+            if api_key and api_key in error_msg:
+                error_msg = error_msg.replace(api_key, "[REDACTED]")
             
-        # Clean up potentially sensitive info from error
-        if api_key and api_key in error_message:
-            error_message = error_message.replace(api_key, "[REDACTED]")
-        
-        # Additional sanitization for common API key patterns
-        import re
-        # Remove potential API keys (long alphanumeric strings)
-        error_message = re.sub(r'\b[A-Za-z0-9]{32,}\b', '[REDACTED]', error_message)
+            # Additional sanitization for common API key patterns
+            import re
+            error_msg = re.sub(r'\b[A-Za-z0-9]{32,}\b', '[REDACTED]', error_msg)
             
-        logging.error(f"Gemini initialization error: {error_message}")
-        return None, error_message, None
+            raise StructuredError(
+                message=error_msg,
+                category=ErrorCategory.API_ERROR,
+                severity=ErrorSeverity.HIGH,
+                user_message=f"Failed to initialize Gemini client",
+                recoverable=True
+            )
 
 def get_transcription_prompt(metadata: Dict[str, Any] = None) -> Template:
     """
