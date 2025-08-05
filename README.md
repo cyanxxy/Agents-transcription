@@ -18,9 +18,12 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
 - **Smart Chunking**: Automatically splits large files for optimal processing
 - **Quality Scoring**: Real-time transcript quality assessment (0-100 score)
 - **Intelligent Editing**: AI-powered suggestions and auto-formatting
-- **Multiple Export Formats**: TXT, SRT, VTT, JSON, XML, CSV, and more
+- **Multiple Export Formats**: TXT, SRT, JSON with structured metadata
 - **Progress Tracking**: Real-time updates during processing
 - **Error Recovery**: Automatic retry with exponential backoff
+- **Async Processing**: Non-blocking operations with background task management
+- **State Optimization**: Intelligent state management to reduce unnecessary reruns
+- **Structured Error Handling**: Comprehensive error categorization and recovery
 
 ### 🛠️ Smart Editing Tools
 - Find & replace with regex support
@@ -32,7 +35,7 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.11+
 - FFmpeg (for audio processing)
 - Google Gemini API key
 
@@ -77,7 +80,7 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
    streamlit run main.py
    ```
 
-   The app will be available at `http://localhost:5000`
+   The app will be available at `http://localhost:8501`
 
 ## 📋 Configuration
 
@@ -104,15 +107,15 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
 
 ## 🏗️ Architecture
 
-### Agent System
+### Modern Agent System with Async Support
 ```
-┌─────────────────────┐
-│ WorkflowCoordinator │
-└──────────┬──────────┘
-           │
-    ┌──────┴──────┐
-    │   Supervisor │
-    └──────┬──────┘
+┌─────────────────────┐    ┌──────────────────┐
+│ WorkflowCoordinator │    │   AsyncHandler   │
+└──────────┬──────────┘    └────────┬─────────┘
+           │                        │
+    ┌──────┴──────┐          ┌──────┴──────┐
+    │   Supervisor │◄─────────┤ErrorHandler │
+    └──────┬──────┘          └─────────────┘
            │
     ┌──────┴────────────────────────────┐
     │                                   │
@@ -125,14 +128,28 @@ ExactTranscriber is a modern, agent-powered audio transcription application that
                   ┌─────▼──────┐              ┌─────────▼──┐
                   │EditAssistant│              │  Exporter  │
                   └─────────────┘              └────────────┘
+                                                      │
+              ┌───────────────────────────────────────┘
+              │
+        ┌─────▼──────┐
+        │StateOptimizer│
+        └────────────┘
 ```
 
+### Core Components
+- **AsyncHandler**: Manages non-blocking async operations without event loop conflicts
+- **ErrorHandler**: Provides structured error handling with automatic retry and recovery
+- **StateOptimizer**: Intelligent state management with batching to minimize reruns
+- **Agent Supervisor**: Coordinates message passing between specialized agents
+
 ### Message Flow
-1. User uploads audio → FileProcessingAgent validates and chunks
-2. TranscriptionAgent processes chunks with Gemini API
-3. QualityAssuranceAgent analyzes transcript quality
-4. EditingAssistantAgent provides editing capabilities
-5. ExportAgent handles format conversion
+1. User uploads audio → FileProcessingAgent validates and chunks (with async validation)
+2. TranscriptionAgent processes chunks with Gemini API (with retry logic)
+3. Background tasks handle long operations without blocking UI
+4. QualityAssuranceAgent analyzes transcript quality
+5. EditingAssistantAgent provides smart editing with error recovery
+6. ExportAgent handles format conversion
+7. StateOptimizer batches updates to prevent unnecessary reruns
 
 ## 📊 Quality Metrics
 
@@ -145,19 +162,52 @@ The app provides comprehensive quality analysis:
 
 ## 🔧 Advanced Features
 
-### Batch Processing
-Process multiple audio files simultaneously with progress tracking for each file.
+### Async Architecture
+- **Non-blocking Operations**: Background task management prevents UI freezing
+- **Event Loop Management**: Proper async/await handling without conflicts
+- **Progress Tracking**: Real-time updates during long-running operations
+
+### Intelligent Error Handling
+- **Structured Errors**: Categorized error types (API, Network, File, etc.)
+- **Automatic Retry**: Exponential backoff with configurable retry limits
+- **Recovery Strategies**: Context-aware error recovery based on error type
+- **Error Persistence**: Failed operations can be resumed
+
+### State Optimization
+- **Batch Updates**: Multiple state changes grouped to reduce reruns
+- **Smart Caching**: Computation results cached with TTL and invalidation
+- **State Persistence**: User preferences saved across sessions
+- **Minimal Reruns**: Intelligent checks prevent unnecessary page reloads
 
 ### Smart Editing
 - **Auto-format**: Fix capitalization, punctuation, remove filler words
 - **Find & Replace**: Support for regex and case-sensitive search
 - **Quality Check**: Detect repeated words, missing punctuation, inconsistencies
+- **Edit History**: Track changes with undo/redo capabilities
 
 ### Export Options
-- **TXT**: Plain text with optional formatting
-- **SRT/VTT**: Subtitle formats with timing
-- **JSON**: Structured data with metadata
-- **CSV**: Tabular format for analysis
+- **TXT**: Plain text with speaker labels and timestamps
+- **SRT**: Subtitle format with precise timing for video playback
+- **JSON**: Structured data with metadata, quality metrics, and processing info
+
+## 🛠️ Technical Architecture
+
+### Utility Modules
+- **`utils/async_handler.py`**: Manages async operations in Streamlit without blocking
+- **`utils/error_handler.py`**: Provides structured error handling with retry mechanisms  
+- **`utils/state_optimizer.py`**: Optimizes state management to reduce reruns
+
+### Key Improvements (Latest Version)
+1. **Async/Sync Fix**: Replaced `asyncio.run()` with proper async handlers
+2. **Error Recovery**: Added comprehensive error categorization and recovery
+3. **Performance**: Optimized state management with intelligent batching
+4. **Background Tasks**: Long operations run in background with progress callbacks
+5. **Retry Logic**: Automatic retry with exponential backoff for API failures
+
+### Dependencies
+- **Core**: Streamlit, Google GenerativeAI, PyDub
+- **Audio**: FFmpeg (system dependency)
+- **Development**: pytest, ruff, black, mypy (optional)
 
 ## 🐛 Troubleshooting
 
@@ -165,16 +215,27 @@ Process multiple audio files simultaneously with progress tracking for each file
 
 1. **"API key not found"**
    - Ensure GOOGLE_API_KEY is set in secrets.toml or environment
+   - Check that secrets.toml file exists in .streamlit/ directory
 
 2. **"File too large"**
    - Maximum file size is 200MB
-   - Large files are automatically chunked
+   - Large files are automatically split into 2-minute chunks
 
 3. **"FFmpeg not found"**
    - Install FFmpeg and ensure it's in your PATH
+   - Verify installation: `ffmpeg -version`
 
-4. **Import errors**
-   - Run `pip install -r requirements.txt` to install all dependencies
+4. **"Event loop errors"**
+   - The app now uses proper async handling to prevent these issues
+   - If encountered, try refreshing the page
+
+5. **"Frequent page reloads"**
+   - The new state optimizer reduces unnecessary reruns
+   - Check browser console for any JavaScript errors
+
+6. **"Processing stuck"**
+   - Background task management handles long operations
+   - Check the progress indicators and wait for completion
 
 ## 🤝 Contributing
 
